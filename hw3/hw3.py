@@ -101,7 +101,7 @@ def rw_probs(G,s,T,q):
 	for node in G.keys():							# T = 2 --> [[A0,A1,A2],[B0,B1,B2],[C0,C1,C2]]
 		nodes.append(node)
 	prob_table = []
-	for i in range(len(nodes)):
+	for i in range(len(nodes)):						# Adding p_0 to probability table
 		row = []
 		if i == 0:
 			row.append(1)
@@ -110,7 +110,7 @@ def rw_probs(G,s,T,q):
 		for j in range(T):
 			row.append(0)
 		prob_table.append(row)
-	for i in range(len(nodes)):
+	for i in range(len(nodes)):						# Probability of visiting node v at timestep t
 		for j in range(1,T+1):
 			summation = 0
 			if len(G[nodes[i]][0]) > 0:
@@ -120,7 +120,7 @@ def rw_probs(G,s,T,q):
 			p = q*summation + (1-q)*prob_table[i][0]
 			if p == 0.0:
 				p = int(p)
-			prob_table[i][j] = p 					# Probability of visiting node v at timestep t
+			prob_table[i][j] = p
 	return prob_table
 
 # Inputs: graph (G), source node (s), num time steps (T), teleportation probability (q)
