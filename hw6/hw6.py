@@ -55,6 +55,7 @@ def post_gn_graph(graph,communities,k,name,gs_session,actual_groups = None):
 									' 7=heptagon, 8=octagon'})
 	post(G, gs_session)
 
+# Reads in the actual badger setts so that nodes can be assigned shapes
 def read_badger_groups(filename):
 	G = {}									# G = {u:[(v,w),(v2,w2)]}
 	with open(filename, 'rt') as file:
@@ -65,6 +66,7 @@ def read_badger_groups(filename):
 			G[badger_ID] = badger_group
 	return G
 
+# Returns a dictionary (see comment below) of nodes and their neighbors/edge weights
 def get_graph(filename):
 	G = {}									# G = {u:[(v,w),(v2,w2)]}
 	with open(filename, 'rt') as file:
@@ -83,6 +85,10 @@ def get_graph(filename):
 				G[node2].append((node1,weight))
 	return G
 
+# Returns a dictionary of communities (see format below) based on the Girvan-Newman
+# clustering algorithm, which removes the edges with highest edge betweenness and then
+# determines whether new graph partitions have been created
+# Prints each community as it is determined
 def girvan_newman(Graph):
 	G = copy.deepcopy(Graph)
 	communities = {}						# {k:[partitions]}
@@ -94,7 +100,7 @@ def girvan_newman(Graph):
 	previous = 1
 	while len(communities) < len(all_nodes):
 		eb_dict = edge_betweenness(G)		# {(u,v):EB (int)}
-		edge_to_remove = [(-1,-1),-1]
+		edge_to_remove = [(-1,-1),-1]		# edge with the highest edge betweenness score, which is removed
 		for edge,eb in eb_dict.items():
 			if eb > edge_to_remove[1]:
 				edge_to_remove = [edge,eb]
@@ -108,8 +114,8 @@ def girvan_newman(Graph):
 				if neighbor[0] == node1:
 					G[node2].remove(neighbor)
 		D,pi = dijkstra_all(G,node1)
-		if D[node2] == DEFAULT_DIST:
-			new1 = []
+		if D[node2] == DEFAULT_DIST:		# If removing an edge split a partition (node1 can no longer reach node2)
+			new1 = []						# Then two new partitions are made based on which nodes node1 can still reach (new1)
 			new2 = []
 			curr_comm = 0
 			for community in communities[previous]:
@@ -130,16 +136,17 @@ def girvan_newman(Graph):
 			previous += 1
 	return communities
 
+# Calculates the edge betweenness score for each edge in the graph
 def edge_betweenness(G):
-	eb = {}									# {(u,v):int}
-	ignoreu = []
+	eb = {}									# {(u,v):eb_score (int)}
+	ignoreu = []							# So duplicates (e.g. (u,v) and (v,u)) are not checked
 	for u,neighbors in G.items():
 		ignoreu.append(u)
 		for vw in neighbors:
 			v = vw[0]
 			if v not in ignoreu:
-				eb[(u,v)] = 0
-				ignore = []
+				eb[(u,v)] = 0				# The actual EB score, with a value added for each path from s to t
+				ignore = []					# Also to prevent duplicate paths being checked
 				for s in G.keys():
 					ignore.append(s)
 					D,pi = dijkstra_all(G,s)
@@ -158,6 +165,7 @@ def edge_betweenness(G):
 							eb[(u,v)] += paths_through_uv/len(st_paths)
 	return eb
 
+# Returns all possible shortest paths from a starting node s to all other nodes, including ties
 def dijkstra_all(G,s):
 	D = {}
 	pi = {}
@@ -185,6 +193,8 @@ def dijkstra_all(G,s):
 	return D,pi
 
 # pi = paths from s, t = target
+# Returns a list of lists of nodes in the shortest path between the starting node s
+# from dijkstra_all, and a target node t
 def get_paths(pi,t):
 	paths = [[t]]
 	for i in range(len(paths)):
@@ -197,10 +207,15 @@ def get_paths(pi,t):
 	return paths
 
 def main():
+	# Calculates the k = 4 partitions when partitioning the toy graph and posts the results
+	# with each partition colored differently
 	toy_graph = get_graph('toy_dataset.txt')
 	communities = girvan_newman(toy_graph)
-	#post_gn_graph(toy_graph,communities,4,'Doak - HW6 Toy Graph',graphspace)
+	post_gn_graph(toy_graph,communities,4,'Doak - HW6 Toy Graph',graphspace)
 
+	# Calculates the k = 8 partitions for the badger graph, posting the graph with each
+	# calculated partition being a different color, and the actual badger setts represented
+	# by the node shapes
 	badger_graph = get_graph('badger_edge_costs.txt')
 	actual_badg = read_badger_groups('badger-info.txt')
 	badg_setts = girvan_newman(badger_graph)
