@@ -3,6 +3,15 @@ Maddy Doak
 BIOL 331 - HW5 ("Minimum Steiner Tree Approximation Algorithm")
 11/4/2019
 
+PKG_CPPFLAGS=-I/home/maddy/gsl/include -I../inst/include
+PKG_LIBS=-L/home/maddy/gsl/lib -lgsl -lgslcblas -lm
+PKG_CXXFLAGS = -I../inst/include -I. $(SHLIB_OPENMP_CXXFLAGS)
+PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+OBJECTS = $(CFILES:.c=.o) $(CPPFILES:.cpp=.o)
+PKG_CFLAGS = -Ireadstat -DHAVE_ZLIB
+PKG_CXXFLAGS = -Ireadstat -DHAVE_ZLIB
+PKG_LIBS = -lz
+
 Blurb
 """
 from graphspace_python.api.client import GraphSpace 
