@@ -137,7 +137,7 @@ def yenKSP(Graph,s,t,K):
 			for node in root_path:
 				if node != spur_node:
 					nodes_to_delete.append(node)
-			deleted_nodes = del_node(G,nodes_to_delete)
+			deleted_nodes = del_nodes(G,nodes_to_delete)
 			D_spur,pi_spur = dijkstra_all(G,spur_node)
 			spur_paths = get_paths(pi_spur,t)
 			total_path = deepcopy(root_path)
@@ -170,32 +170,37 @@ def get_candidates(Graph,L,s,t,K):
 	G = deepcopy(Graph)
 	candidates = []
 	to_delete = []
-	no_unknowns = False
-	while not(no_unknowns) and len(candidates) <= 10:
+	#no_unknowns = False
+	while len(candidates) < 10:
 		K_shortest_paths = yenKSP(G,s,t,K)
 		if K_shortest_paths is None:
 			break
-		scores = []
-		for p in K_shortest_paths:
-			score = 0
-			for node in p[1:len(p)-1]:			# Not counting fog/sqh
-				if node in L.keys():
-					if L[node] == "Positive":
-						score += 1
-			score = score / len(p[1:len(p)-1])
-			scores.append(score)
-		best_i = scores.index(max(scores))
-		best_path = K_shortest_paths[best_i]
-		for node in best_path[1:len(p)-1]:		# Not counting fog/sqh
-			if node not in L.keys():
-				candidates.append(node)
-				to_delete.append(node)
-		if len(to_delete) > 0:
-			del_node(G,to_delete)
-			to_delete = []
-			print("Have "+str(len(candidates))+" candidate(s)")
-		else:
-			no_unknowns = True
+		def get_best_path(L,K_shortest_paths):
+			scores = []
+			for p in K_shortest_paths:
+				score = 0
+				for node in p[1:len(p)-1]:					# Not counting fog/sqh
+					if node in L.keys():
+						if L[node] == "Positive":
+							score += 1
+				score = score / len(p[1:len(p)-1])
+				scores.append(score)
+			best = scores.index(max(scores))
+			return K_shortest_paths[best]
+		
+		while len(to_delete) == 0:
+			best_path = get_best_path(L,K_shortest_paths)
+			for node in best_path[1:len(best_path)-1]:		# Not counting fog/sqh
+				if node not in L.keys():
+					candidates.append(node)
+					to_delete.append(node)
+			if len(to_delete) > 0:
+				del_nodes(G,to_delete)
+				print("Have "+str(len(candidates))+" candidate(s)")
+			else:
+				K_shortest_paths.remove(best_path)
+		to_delete = []
+
 	print("Final list of candidates: "+str(candidates))
 	with open('Maddy_candidates.txt','w') as file:
 	    for c in candidates[:len(candidates)-1]:
@@ -204,7 +209,7 @@ def get_candidates(Graph,L,s,t,K):
 
 # Helper function for ease of use; makes a list of key-value pairs from the graph and then deletes
 # those nodes and any edges containing those nodes from the graph
-def del_node(G,node_list):
+def del_nodes(G,node_list):
 	deleted = {}
 	for node in node_list:
 		deleted[node] = deepcopy(G[node])
@@ -225,7 +230,8 @@ def main():
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
 	K = 3		# number of shortest paths from s to t
-	get_candidates(flyG,flyL,s,t,K)
+	#get_candidates(flyG,flyL,s,t,K)
+	get_candidates(toyG,toyL,toys,toyt,K)
 	#paths = yenKSP(flyG,s,t,K)
 	#print("Final "+str(K)+" shortest paths:")
 	#for p in paths:
