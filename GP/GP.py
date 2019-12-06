@@ -73,7 +73,7 @@ def dijkstra_all(G,s):
 		for neighbor in G[min_node].keys():						# For each neighbor of the node with the smallest distance from s
 			if D[neighbor] == DEFAULT_DIST:						# If the neighbor hasn't been visited, add it to the "to_visit" list
 				to_visit.append(neighbor)
-			updated = float(D[min_node]) + G[min_node][neighbor]	# Possible updated distance from s to this neighbor of min_node = 
+			updated = float(D[min_node]) + G[min_node][neighbor]	# Possible updated distance from s to this neighbor of min_node =
 			if updated <= D[neighbor]:								# distance to min_node plus distance from min_node to this neighbor
 				if updated < D[neighbor]:
 					pi[neighbor] = [min_node]
@@ -201,13 +201,14 @@ def get_candidates(Graph,L,s,t,K):
 		to_delete = []
 	print("Final list of candidates: "+str(candidates))
 	with open('Maddy_candidates_all.txt','w') as file:
-	    for c in candidates[:len(candidates)-1]:
-	    	file.write(c+"\n")
-	    file.write(candidates[-1])
-	with open('Maddy_candidates_10.txt','w') as file:
-	    for c in candidates[:9]:
-	    	file.write(c+"\n")
-	    file.write(candidates[9])
+		for c in candidates[:len(candidates)-1]:
+			file.write(c+"\n")
+		file.write(candidates[-1])
+	if len(candidates) >=10:
+		with open('Maddy_candidates_10.txt','w') as file:
+			for c in candidates[:9]:
+				file.write(c+"\n")
+			file.write(candidates[9])
 
 # Helper function for ease of use; makes a list of key-value pairs from the graph and then deletes
 # those nodes and any edges containing those nodes from the graph
@@ -222,18 +223,16 @@ def del_nodes(G,node_list):
 		del G[node]
 	return deleted
 
-# For some reason splits nodes into individual characters?????
-# FIX THIS
 def main():
-	flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
-	toyG,toyL = read_fly_interactome("toy_dataset.txt","toy_labeled.txt")
+	flyG,flyL = read_fly_interactome("GP/interactome-flybase-collapsed-weighted.txt","GP/labeled_nodes.txt")
+	toyG,toyL = read_fly_interactome("GP/toy_dataset.txt","GP/toy_labeled.txt")
 	toys = 'A1'
 	toyt = 'G1'
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
 	K = 3		# number of shortest paths from s to t
-	get_candidates(flyG,flyL,s,t,K)
-	#get_candidates(toyG,toyL,toys,toyt,K)
+	#get_candidates(flyG,flyL,s,t,K)
+	get_candidates(toyG,toyL,toys,toyt,K)
 	#paths = yenKSP(flyG,s,t,K)
 	#print("Final "+str(K)+" shortest paths:")
 	#for p in paths:
