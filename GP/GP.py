@@ -187,7 +187,6 @@ def get_candidates(Graph,L,s,t,K):
 				scores.append(score)
 			best = scores.index(max(scores))
 			return K_shortest_paths[best]
-		
 		while len(to_delete) == 0:
 			best_path = get_best_path(L,K_shortest_paths)
 			for node in best_path[1:len(best_path)-1]:		# Not counting fog/sqh
@@ -200,12 +199,15 @@ def get_candidates(Graph,L,s,t,K):
 			else:
 				K_shortest_paths.remove(best_path)
 		to_delete = []
-
 	print("Final list of candidates: "+str(candidates))
-	with open('Maddy_candidates.txt','w') as file:
+	with open('Maddy_candidates_all.txt','w') as file:
 	    for c in candidates[:len(candidates)-1]:
 	    	file.write(c+"\n")
 	    file.write(candidates[-1])
+	with open('Maddy_candidates_10.txt','w') as file:
+	    for c in candidates[:9]:
+	    	file.write(c+"\n")
+	    file.write(candidates[9])
 
 # Helper function for ease of use; makes a list of key-value pairs from the graph and then deletes
 # those nodes and any edges containing those nodes from the graph
