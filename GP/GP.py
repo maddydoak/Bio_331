@@ -111,10 +111,10 @@ def yenKSP(Graph,s,t,K):
 	potentials = []
 	D,pi = dijkstra_all(G,s)
 	paths = get_paths(pi,t)
+	if paths is None:
+		return None
 	for path in paths:
 		k_paths.append(path)
-	print("Shortest path(s): "+str(k_paths))
-	print("Have "+str(len(k_paths))+"/"+str(K)+" paths")
 	start = 0
 	stop = K-1
 	for i in range(len(k_paths)):
@@ -162,8 +162,45 @@ def yenKSP(Graph,s,t,K):
 			if potentials[0] not in k_paths:
 				k_paths.append(potentials[0])
 				potentials.pop()
-				print("Have "+str(len(k_paths))+"/"+str(K)+" paths")
 	return k_paths
+
+# Primary function - takes the graph, pos/neg labels for proteins, and a starting/ending node
+# Returns a list of candidate fog pathway proteins
+def get_candidates(Graph,L,s,t,K):
+	G = deepcopy(Graph)
+	candidates = []
+	to_delete = []
+	no_unknowns = False
+	while not(no_unknowns) and len(candidates) <= 10:
+		K_shortest_paths = yenKSP(G,s,t,K)
+		if K_shortest_paths is None:
+			break
+		scores = []
+		for p in K_shortest_paths:
+			score = 0
+			for node in p[1:len(p)-1]:			# Not counting fog/sqh
+				if node in L.keys():
+					if L[node] == "Positive":
+						score += 1
+			score = score / len(p[1:len(p)-1])
+			scores.append(score)
+		best_i = scores.index(max(scores))
+		best_path = K_shortest_paths[best_i]
+		for node in best_path[1:len(p)-1]:		# Not counting fog/sqh
+			if node not in L.keys():
+				candidates.append(node)
+				to_delete.append(node)
+		if len(to_delete) > 0:
+			del_node(G,to_delete)
+			to_delete = []
+			print("Have "+str(len(candidates))+" candidate(s)")
+		else:
+			no_unknowns = True
+	print("Final list of candidates: "+str(candidates))
+	with open('Maddy_candidates.txt','w') as file:
+	    for c in candidates[:len(candidates)-1]:
+	    	file.write(c+"\n")
+	    file.write(candidates[-1])
 
 # Helper function for ease of use; makes a list of key-value pairs from the graph and then deletes
 # those nodes and any edges containing those nodes from the graph
@@ -178,35 +215,6 @@ def del_node(G,node_list):
 		del G[node]
 	return deleted
 
-# Primary function - takes the graph, pos/neg labels for proteins, and a starting/ending node
-# Returns a list of candidate fog pathway proteins
-def get_candidates(Graph,L,s,t):
-	G = deepcopy(Graph)
-	candidates = []
-	to_delete = []
-	no_unknowns = False
-	while not(no_unknowns) and len(candidates) <= 15:
-		D,pi = dijkstra_all(G,s)
-		paths = get_paths(pi,t)
-		for path in paths:
-			for node in path[1:len(path)-1]:
-				if node not in L.keys():
-					candidates.append(node)
-					to_delete.append(node)
-		if len(to_delete) > 0:
-			for node in to_delete:
-				for neighbor in G[node].keys():
-					del G[neighbor][node]
-				del G[node]
-			to_delete = []
-			print(candidates)
-		else:
-			no_unknowns = True
-	with open('Maddy_candidates.txt','w') as file:
-	    for c in candidates[:len(candidates)-1]:
-	    	file.write(c+"\n")
-	    file.write(candidates[-1])
-
 # For some reason splits nodes into individual characters?????
 # FIX THIS
 def main():
@@ -217,11 +225,16 @@ def main():
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
 	K = 3		# number of shortest paths from s to t
-	#get_candidates(G,L,s,t)
-	paths = yenKSP(flyG,s,t,K)
-	print("Final "+str(K)+" shortest paths:")
-	for p in paths:
-		print(p)
+	get_candidates(toyG,toyL,toys,toyt,K)
+	#paths = yenKSP(flyG,s,t,K)
+	#print("Final "+str(K)+" shortest paths:")
+	#for p in paths:
+	#	print(p)
+
+# Results for fly interactome from desktop:
+# 1. ['sqh', 'flw', 'Cul3', 'rdx', 'ci', 'sgg', 'Axn', 'dsh', 'Rho1', 'cta', 'fog']
+# 2. ['sqh', 'Pp1-87B', 'flw', 'Cul3', 'rdx', 'ci', 'sgg', 'Axn', 'dsh', 'Rho1', 'cta', 'fog']
+# 3. ['sqh', 'Pp1-87B', 'Mbs', 'flw', 'Cul3', 'rdx', 'ci', 'sgg', 'Axn', 'dsh', 'Rho1', 'cta', 'fog']
 
 if __name__ == "__main__":
 	main()
