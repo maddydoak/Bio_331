@@ -225,7 +225,7 @@ def main():
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
 	K = 3		# number of shortest paths from s to t
-	get_candidates(toyG,toyL,toys,toyt,K)
+	get_candidates(flyG,flyL,s,t,K)
 	#paths = yenKSP(flyG,s,t,K)
 	#print("Final "+str(K)+" shortest paths:")
 	#for p in paths:
