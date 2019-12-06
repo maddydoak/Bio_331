@@ -59,7 +59,7 @@ def dijkstra_all(G,s):
 	pi = {}
 	for node in G.keys():
 		D[node] = DEFAULT_DIST
-		pi[node] = []
+		pi[node] = None
 	D[s] = 0
 	pi[s] = None
 	to_visit = [s]
@@ -89,14 +89,19 @@ def dijkstra_all(G,s):
 # from dijkstra_all, and a target node t
 def get_paths(pi,t):
 	paths = [[t]]
-	for i in range(len(paths)):
+	i = 0
+	while i < len(paths):
 		while pi[paths[i][0]] != None:							# while 1st entry in path is not s
 			path = paths.pop(i)									# remove that path
 			paths.append([pi[path[0]][-1]] + path)				# Add back the path with the last predecessor in pi as new 1st entry
 			for j in range(len(pi[path[0]])-1):					# For each predecessor other than the last one in the list:
 				paths.append(deepcopy(path))					# Add a new copy of the path with that predecessor as new 1st entry
 				paths[-1] = [pi[path[0]][j]] + paths[-1]
-	return paths
+		i += 1
+	if paths != [[t]]:
+		return paths
+	else:
+		return None
 
 # Implementation of Yen's K shortest paths based on Wikipedia pseudocode
 # Inputs: G=graph, s=source node, t=target node, K=number of shortest paths
@@ -106,42 +111,70 @@ def yenKSP(Graph,s,t,K):
 	potentials = []
 	D,pi = dijkstra_all(G,s)
 	paths = get_paths(pi,t)
-	print(paths)
 	for path in paths:
 		k_paths.append(path)
-	for k in range(5-len(k_paths)):						# To account for having 2+ tied paths from dijkstra_all
+	print("Shortest path(s): "+str(k_paths))
+	print("Have "+str(len(k_paths))+"/"+str(K)+" paths")
+	start = 0
+	stop = K-1
+	for i in range(len(k_paths)):
+		start += 1
+		stop += 1
+	for k in range(start,stop):						# To account for having 2+ tied paths from dijkstra_all
 		for i in range(len(k_paths[k-1])-1):
 			spur_node = k_paths[k-1][i]
 			root_path = k_paths[k-1][:i+1]
 			nodes_to_delete = []
+			removed_edges = []
 			for path in k_paths:
 				if root_path == path[:i+1]:
-					nodes_to_delete.extend([path[i],path[i+1]])
+					removed_edges.append((path[i],path[i+1],G[path[i]][path[i+1]]))
+			for edge in removed_edges:
+				if edge[1] in G[edge[0]].keys():
+					del G[edge[0]][edge[1]]
+				if edge[0] in G[edge[1]].keys():
+					del G[edge[1]][edge[0]]
 			for node in root_path:
 				if node != spur_node:
 					nodes_to_delete.append(node)
 			deleted_nodes = del_node(G,nodes_to_delete)
 			D_spur,pi_spur = dijkstra_all(G,spur_node)
-			spur_path = get_paths(pi_spur,t)
-			total_path = root_path.extend(spur_path)
-			potentials.append(total_path)
+			spur_paths = get_paths(pi_spur,t)
+			total_path = deepcopy(root_path)
+			if spur_paths is not None:
+				for p in spur_paths:
+					for node in p:
+						if node not in total_path:
+							total_path.append(node)
+				if total_path not in potentials:
+					potentials.append(total_path)
 			for node,neighbors in deleted_nodes.items():
 				G[node] = neighbors
 				for v,w in neighbors.items():
+					if v not in G.keys():
+						G[v] = {}
 					G[v][node] = w
-		if len(potentials) != 0:
+			for edge in removed_edges:
+				G[edge[0]][edge[1]] = edge[2]
+				G[edge[1]][edge[0]] = edge[2]
+		if len(potentials) > 0:
 			potentials.sort()
-			k_paths[k] = potentials[0]
-			B.pop()
+			if potentials[0] not in k_paths:
+				k_paths.append(potentials[0])
+				potentials.pop()
+				print("Have "+str(len(k_paths))+"/"+str(K)+" paths")
 	return k_paths
 
-# Helper function for ease of use
+# Helper function for ease of use; makes a list of key-value pairs from the graph and then deletes
+# those nodes and any edges containing those nodes from the graph
 def del_node(G,node_list):
 	deleted = {}
 	for node in node_list:
-		deleted[node] = G[node]
+		deleted[node] = deepcopy(G[node])
+	for node in node_list:
 		for v in G[node].keys():
-			del G[v][node]
+			if v in G.keys():
+				del G[v][node]
 		del G[node]
 	return deleted
 
@@ -169,18 +202,26 @@ def get_candidates(Graph,L,s,t):
 			print(candidates)
 		else:
 			no_unknowns = True
-	with open('candidates.txt','w') as file:
+	with open('Maddy_candidates.txt','w') as file:
 	    for c in candidates[:len(candidates)-1]:
 	    	file.write(c+"\n")
 	    file.write(candidates[-1])
 
+# For some reason splits nodes into individual characters?????
+# FIX THIS
 def main():
-	G,L = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
+	#flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
+	toyG,toyL = read_fly_interactome("toy_dataset.txt","toy_labeled.txt")
+	toys = 'A1'
+	toyt = 'G1'
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
 	K = 3		# number of shortest paths from s to t
 	#get_candidates(G,L,s,t)
-	paths = yenKSP(G,s,t,3)
+	paths = yenKSP(toyG,toys,toyt,K)
+	print("Final "+str(K)+" shortest paths:")
+	for p in paths:
+		print(p)
 
 if __name__ == "__main__":
 	main()
