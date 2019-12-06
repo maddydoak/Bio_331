@@ -210,7 +210,7 @@ def get_candidates(Graph,L,s,t):
 # For some reason splits nodes into individual characters?????
 # FIX THIS
 def main():
-	#flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
+	flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
 	toyG,toyL = read_fly_interactome("toy_dataset.txt","toy_labeled.txt")
 	toys = 'A1'
 	toyt = 'G1'
@@ -218,7 +218,7 @@ def main():
 	t = 'fog'	# target node
 	K = 3		# number of shortest paths from s to t
 	#get_candidates(G,L,s,t)
-	paths = yenKSP(toyG,toys,toyt,K)
+	paths = yenKSP(flyG,s,t,K)
 	print("Final "+str(K)+" shortest paths:")
 	for p in paths:
 		print(p)
