@@ -120,7 +120,7 @@ def yenKSP(Graph,s,t,K):
 	for i in range(len(k_paths)):
 		start += 1
 		stop += 1
-	for k in range(start,stop):						# To account for having 2+ tied paths from dijkstra_all
+	for k in range(start,stop):									# To account for having 2+ tied paths from dijkstra_all
 		for i in range(len(k_paths[k-1])-1):
 			spur_node = k_paths[k-1][i]
 			root_path = k_paths[k-1][:i+1]
@@ -179,7 +179,7 @@ def get_candidates(Graph,L,s,t,K):
 			scores = []
 			for p in K_shortest_paths:
 				score = 0
-				for node in p[1:len(p)-1]:					# Not counting fog/sqh
+				for node in p[1:len(p)-1]:						# Not counting fog/sqh
 					if node in L.keys():
 						if L[node] == "Positive":
 							score += 1
@@ -189,7 +189,7 @@ def get_candidates(Graph,L,s,t,K):
 			return K_shortest_paths[best]
 		while len(to_delete) == 0:
 			best_path = get_best_path(L,K_shortest_paths)
-			for node in best_path[1:len(best_path)-1]:		# Not counting fog/sqh
+			for node in best_path[1:len(best_path)-1]:			# Not counting fog/sqh
 				if node not in L.keys():
 					candidates.append(node)
 					to_delete.append(node)
