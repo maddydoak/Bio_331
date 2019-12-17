@@ -13,8 +13,12 @@ OUTPUT: text file with list of candidates in order of rank
 
 from copy import deepcopy
 from math import log
+from graphspace_python.api.client import GraphSpace
+from graphspace_python.graphs.classes.gsgraph import GSGraph
 
-# From HW6, written by me
+graphspace = GraphSpace('maddydoak@gmail.com','mygraphspacepw')
+
+# From HW6, written by me, with modifications for this particular use case
 # Returns a dictionary of dictionaries of nodes and their neighbors/edge weights
 # Also returns a dictionary of labeled nodes
 def read_fly_interactome(graph_file,label_file):
@@ -46,13 +50,10 @@ def read_fly_interactome(graph_file,label_file):
 				L[name] = label
 	return G,L
 
-# Taken from HW6, written by myself
-# Modified to take a graph as a dictionary of dictionaries
-# Modified to fix bug - previously, distance was updated before checking whether the updated distance was less than OR equal to,
-# so the case for the updated distance equaling the old distance was always used, never the case where updated < old
-# Inputs: weighted graph G, a dictionary of dictionaries of nodes and their neighbors/edge weights {u:{v:w,v2:w2,...},...}
-# and a starting node s
-# Outputs: dictionaries D (distances between node pairs, {node:dist to node from s}) and pi (predecessors in shortest paths, {node:})
+# Taken from HW6, written by myself; modified to take a graph as a dict of dicts
+# Modified to fix bug - before, distance was updated before checking if updated distance was < OR =, so always used = case
+# Inputs: G (weighted/undirected graph as a dict of dicts of nodes + their neighbors/edge weights {u:{v:w,v2:w2,...},...}), and starting node s
+# Outputs: dicts D (distances between node pairs, {node:dist from s}) and pi (predecessors in shortest paths, {node:[pred,alt_pred]})
 DEFAULT_DIST = 10000
 def dijkstra_all(G,s):
 	D = {}
@@ -73,8 +74,8 @@ def dijkstra_all(G,s):
 		for neighbor in G[min_node].keys():						# For each neighbor of the node with the smallest distance from s
 			if D[neighbor] == DEFAULT_DIST:						# If the neighbor hasn't been visited, add it to the "to_visit" list
 				to_visit.append(neighbor)
-			updated = float(D[min_node]) + G[min_node][neighbor]	# Possible updated distance from s to this neighbor of min_node =
-			if updated <= D[neighbor]:								# distance to min_node plus distance from min_node to this neighbor
+			updated = float(D[min_node]) + G[min_node][neighbor]# Possible updated distance from s to this neighbor of min_node =
+			if updated <= D[neighbor]:							# distance to min_node plus distance from min_node to this neighbor
 				if updated < D[neighbor]:
 					pi[neighbor] = [min_node]
 				else:
@@ -84,9 +85,8 @@ def dijkstra_all(G,s):
 	return D,pi
 
 # From HW6, written by me
-# pi = paths from s, t = target
-# Returns a list of lists of nodes in the shortest path between the starting node s
-# from dijkstra_all, and a target node t
+# Inputs: pi = paths from s, t = target node
+# Returns: list of lists of nodes in shortest path from starting node s (from dijkstra_all) and target node t
 def get_paths(pi,t):
 	paths = [[t]]
 	i = 0
@@ -104,7 +104,8 @@ def get_paths(pi,t):
 		return None
 
 # Implementation of Yen's K shortest paths based on Wikipedia pseudocode
-# Inputs: G=graph, s=source node, t=target node, K=number of shortest paths
+# Inputs: G=graph (dict of dicts, see above), s=source node, t=target node, K=number of shortest paths
+# Returns: list of lists of K shortest paths from s to t
 def yenKSP(Graph,s,t,K):
 	G = deepcopy(Graph)
 	k_paths = []
@@ -164,13 +165,14 @@ def yenKSP(Graph,s,t,K):
 				potentials.pop()
 	return k_paths
 
-# Primary function - takes the graph, pos/neg labels for proteins, and a starting/ending node
-# Returns a list of candidate fog pathway proteins
+# Primary function,
+# Inputs: Graph = graph (dict of dicts), L = dict of pos/neg labels, s = starting node, t = ending node, K = number of shortest paths to examine
+# Returns: list of candidate fog pathway proteins
 def get_candidates(Graph,L,s,t,K):
 	G = deepcopy(Graph)
 	candidates = []
 	to_delete = []
-	#no_unknowns = False
+	best_paths = []
 	while len(candidates) < 10:
 		K_shortest_paths = yenKSP(G,s,t,K)
 		if K_shortest_paths is None:
@@ -185,17 +187,20 @@ def get_candidates(Graph,L,s,t,K):
 							score += 1
 				score = score / len(p[1:len(p)-1])
 				scores.append(score)
-			best = scores.index(max(scores))
-			return K_shortest_paths[best]
+			return K_shortest_paths[scores.index(max(scores))]
 		while len(to_delete) == 0:
 			best_path = get_best_path(L,K_shortest_paths)
+			best_paths.append(best_path)
 			for node in best_path[1:len(best_path)-1]:			# Not counting fog/sqh
 				if node not in L.keys():
 					candidates.append(node)
 					to_delete.append(node)
 			if len(to_delete) > 0:
 				del_nodes(G,to_delete)
-				print("Have "+str(len(candidates))+" candidate(s)")
+				if len(candidates) == 1:
+					print("Have "+str(len(candidates))+" candidate")
+				else:
+					print("Have "+str(len(candidates))+" candidates")
 			else:
 				K_shortest_paths.remove(best_path)
 		to_delete = []
@@ -209,6 +214,7 @@ def get_candidates(Graph,L,s,t,K):
 			for c in candidates[:9]:
 				file.write(c+"\n")
 			file.write(candidates[9])
+	return best_paths
 
 # Helper function for ease of use; makes a list of key-value pairs from the graph and then deletes
 # those nodes and any edges containing those nodes from the graph
@@ -223,25 +229,61 @@ def del_nodes(G,node_list):
 		del G[node]
 	return deleted
 
+# Posts or updates existing graph on GraphSpace
+def post(G, gs):
+	try:
+		graph = gs.update_graph(G)
+	except:
+		graph = gs.post_graph(G)
+	return graph
+
+# Graphs network of shortest paths between s, t
+def graph_best_paths(gs_session,paths,graph):
+	G = GSGraph()
+	G.set_name("Doak - Best Paths from Sqh to Fog")
+	G.set_tags(['GP'])
+	st_nodes = [paths[0][0],paths[0][-1]]
+	nodes = []
+	edges = []
+	n_colors = ["#e76af7","#b767f5","#7666f2","#67aef5","#65d7eb"]
+	for p in paths:
+		for i in range(len(p)-1):
+			if p[i] not in nodes:
+				nodes.append((p[i],paths.index(p)))
+			if (p[i],p[i+1]) not in edges and (p[i+1],p[i]) not in edges:
+				edges.append((p[i],p[i+1],graph[p[i]][p[i+1]]))
+		if p[-1] not in nodes:
+			nodes.append(p[-1])
+	for node_tup in nodes:
+		G.add_node(node_tup[0],label=node_tup[0])
+		if node_tup[0] in st_nodes:
+			G.add_node_style(node_tup[0],
+							 color = "#fa6bac",
+							 height = 30,
+							 width = 30)
+		else:
+			G.add_node_style(node_tup[0],
+							 color = n_colors[node_tup[1]],
+							 height = 30,
+							 width = 30)
+	for edge in edges:
+		G.add_edge(edge[0],edge[1])
+		G.add_edge_style(edge[0],edge[1],width=1+float(edge[2]))
+	G.set_data(data={'description: shortest paths in fly interactome from sqh to fog, with sqh and fog highlighted'})
+	post(G, gs_session)
+
 def main():
-	flyG,flyL = read_fly_interactome("GP/interactome-flybase-collapsed-weighted.txt","GP/labeled_nodes.txt")
-	toyG,toyL = read_fly_interactome("GP/toy_dataset.txt","GP/toy_labeled.txt")
-	toys = 'A1'
-	toyt = 'G1'
+	flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
+	toyG,toyL = read_fly_interactome("toy_dataset.txt","toy_labeled.txt")
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
+	toys = 'A1'
+	toyt = 'G1'
 	K = 3		# number of shortest paths from s to t
-	#get_candidates(flyG,flyL,s,t,K)
-	get_candidates(toyG,toyL,toys,toyt,K)
-	#paths = yenKSP(flyG,s,t,K)
-	#print("Final "+str(K)+" shortest paths:")
-	#for p in paths:
-	#	print(p)
-
-# Results for fly interactome from desktop:
-# 1. ['sqh', 'flw', 'Cul3', 'rdx', 'ci', 'sgg', 'Axn', 'dsh', 'Rho1', 'cta', 'fog']
-# 2. ['sqh', 'Pp1-87B', 'flw', 'Cul3', 'rdx', 'ci', 'sgg', 'Axn', 'dsh', 'Rho1', 'cta', 'fog']
-# 3. ['sqh', 'Pp1-87B', 'Mbs', 'flw', 'Cul3', 'rdx', 'ci', 'sgg', 'Axn', 'dsh', 'Rho1', 'cta', 'fog']
+	# See if different with 5
+	# Add iteration number to table on Overleaf, and/or graph
+	best_paths = get_candidates(flyG,flyL,s,t,K)
+	graph_best_paths(graphspace,best_paths,flyG)
 
 if __name__ == "__main__":
 	main()

@@ -3,7 +3,7 @@ Maddy Doak
 BIO 331 - HW6
 Girvan-Newman algorithm for community detection on undirected, weighted graphs
 """
-from graphspace_python.api.client import GraphSpace 
+from graphspace_python.api.client import GraphSpace
 from graphspace_python.graphs.classes.gsgraph import GSGraph
 import copy
 
