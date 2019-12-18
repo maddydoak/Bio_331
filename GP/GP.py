@@ -13,6 +13,7 @@ OUTPUT: text file with list of candidates in order of rank
 
 from copy import deepcopy
 from math import log
+from datetime import datetime
 from graphspace_python.api.client import GraphSpace
 from graphspace_python.graphs.classes.gsgraph import GSGraph
 
@@ -177,6 +178,7 @@ def get_candidates(Graph,L,s,t,K):
 		K_shortest_paths = yenKSP(G,s,t,K)
 		if K_shortest_paths is None:
 			break
+		print("K shortest paths: ",K_shortest_paths)
 		def get_best_path(L,K_shortest_paths):
 			scores = []
 			for p in K_shortest_paths:
@@ -199,13 +201,13 @@ def get_candidates(Graph,L,s,t,K):
 			if len(to_delete) > 0:
 				del_nodes(G,to_delete)
 				if len(candidates) == 1:
-					print("Have "+str(len(candidates))+" candidate")
+					print(datetime.now().hour,":",datetime.now().minute,":",datetime.now().second," - ","Have ",str(len(candidates))," candidate")
 				else:
-					print("Have "+str(len(candidates))+" candidates")
+					print(datetime.now().hour,":",datetime.now().minute,":",datetime.now().second," - ","Have ",str(len(candidates))," candidates")
 			else:
 				K_shortest_paths.remove(best_path)
 				if len(K_shortest_paths) == 0:
-					print("Out of paths! Starting over...")
+					print(datetime.now().hour,":",datetime.now().minute,":",datetime.now().second," - ","Out of paths! Starting over...")
 					paths_not_empty = False
 		to_delete = []
 	print("Final list of candidates: "+str(candidates))
@@ -299,7 +301,9 @@ def graph_best_paths(gs_session,paths,labels,graph):
 	post(G, gs_session)
 
 def main():
+	print("Reading fly interactome...")
 	flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
+	print("done. Getting best shortest paths...")
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
 	K = 5		# number of shortest paths from s to t
