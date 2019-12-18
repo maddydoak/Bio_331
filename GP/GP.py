@@ -205,6 +205,7 @@ def get_candidates(Graph,L,s,t,K):
 			else:
 				K_shortest_paths.remove(best_path)
 				if len(K_shortest_paths) == 0:
+					print("Out of paths! Starting over...")
 					paths_not_empty = False
 		to_delete = []
 	print("Final list of candidates: "+str(candidates))
