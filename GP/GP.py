@@ -188,7 +188,8 @@ def get_candidates(Graph,L,s,t,K):
 				score = score / len(p[1:len(p)-1])
 				scores.append(score)
 			return K_shortest_paths[scores.index(max(scores))]
-		while len(to_delete) == 0:
+		paths_not_empty = True
+		while len(to_delete) == 0 and paths_not_empty:
 			best_path = get_best_path(L,K_shortest_paths)
 			best_paths.append(best_path)
 			for node in best_path[1:len(best_path)-1]:			# Not counting fog/sqh
@@ -203,6 +204,8 @@ def get_candidates(Graph,L,s,t,K):
 					print("Have "+str(len(candidates))+" candidates")
 			else:
 				K_shortest_paths.remove(best_path)
+				if len(K_shortest_paths) == 0:
+					paths_not_empty = False
 		to_delete = []
 	print("Final list of candidates: "+str(candidates))
 	with open('Maddy_candidates_all.txt','w') as file:
