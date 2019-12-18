@@ -173,7 +173,7 @@ def get_candidates(Graph,L,s,t,K):
 	candidates = []
 	to_delete = []
 	best_paths = []
-	while len(candidates) < 10:
+	while len(candidates) < 100:
 		K_shortest_paths = yenKSP(G,s,t,K)
 		if K_shortest_paths is None:
 			break
@@ -238,52 +238,102 @@ def post(G, gs):
 	return graph
 
 # Graphs network of shortest paths between s, t
-def graph_best_paths(gs_session,paths,graph):
+def graph_best_paths(gs_session,paths,labels,graph):
 	G = GSGraph()
 	G.set_name("Doak - Best Paths from Sqh to Fog")
 	G.set_tags(['GP'])
 	st_nodes = [paths[0][0],paths[0][-1]]
-	nodes = []
+	nodes = {}
 	edges = []
-	n_colors = ["#e76af7","#b767f5","#7666f2","#67aef5","#65d7eb"]
+	n_colors = ["#e76af7","#b767f5","#7666f2","#67aef5","#65d7eb","#62e391","#ade065"]
 	for p in paths:
 		for i in range(len(p)-1):
-			if p[i] not in nodes:
-				nodes.append((p[i],paths.index(p)))
+			if p[i] not in nodes.keys():
+				nodes[p[i]] = paths.index(p)
 			if (p[i],p[i+1]) not in edges and (p[i+1],p[i]) not in edges:
 				edges.append((p[i],p[i+1],graph[p[i]][p[i+1]]))
-		if p[-1] not in nodes:
-			nodes.append(p[-1])
-	for node_tup in nodes:
-		G.add_node(node_tup[0],label=node_tup[0])
-		if node_tup[0] in st_nodes:
-			G.add_node_style(node_tup[0],
+		if p[-1] not in nodes.keys():
+			nodes[p[-1]] = paths.index(p)
+	for node,i in nodes.items():
+		G.add_node(node,label=node)
+		if node in st_nodes:
+			G.add_node_style(node,
 							 color = "#fa6bac",
 							 height = 30,
-							 width = 30)
+							 width = max(30,15*(len(node))))
 		else:
-			G.add_node_style(node_tup[0],
-							 color = n_colors[node_tup[1]],
-							 height = 30,
-							 width = 30)
+			if node in labels.keys():
+				if labels[node] == "Positive":
+					G.add_node_style(node,
+									 color = n_colors[nodes[node]],
+									 border_width = 3,
+									 border_color = 'green',
+									 style = 'dashed',
+									 height = 30,
+									 width = max(30,15*(len(node))))
+				elif labels[node] == "Negative":
+					G.add_node_style(node,
+									 color = n_colors[nodes[node]],
+									 border_width = 3,
+									 border_color = 'red',
+									 style = 'dashed',
+									 height = 30,
+									 width = max(30,15*(len(node))))
+			else:
+				G.add_node_style(node,
+								 color = n_colors[nodes[node]],
+								 border_width = 5,
+								 height = 30,
+								 width = max(30,15*(len(node))))
 	for edge in edges:
 		G.add_edge(edge[0],edge[1])
 		G.add_edge_style(edge[0],edge[1],width=1+float(edge[2]))
-	G.set_data(data={'description: shortest paths in fly interactome from sqh to fog, with sqh and fog highlighted'})
+	G.set_data(data={'description': 'shortest paths in fly interactome from sqh to fog, with sqh and fog highlighted in'\
+	 					' pink. First shortest paths are warmer (closer to pink), shifting to purple, blue, then green'\
+						' in order of when the paths were generated after removing previous nodes. Red-bordered nodes'\
+						' are negative, green-bordered nodes are positive, and black-bordered nodes are unlabeled candidates.'})
 	post(G, gs_session)
 
 def main():
 	flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
-	toyG,toyL = read_fly_interactome("toy_dataset.txt","toy_labeled.txt")
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
-	toys = 'A1'
-	toyt = 'G1'
-	K = 3		# number of shortest paths from s to t
-	# See if different with 5
-	# Add iteration number to table on Overleaf, and/or graph
+	K = 5		# number of shortest paths from s to t
 	best_paths = get_candidates(flyG,flyL,s,t,K)
-	graph_best_paths(graphspace,best_paths,flyG)
+	#graph_best_paths(graphspace,best_paths,flyL,flyG)
+
+"""
+K=3
+
+Final candidates:
+['flw', 'rdx', 'ci', 'Axn', 'Pp1-87B', 'l(2)gl', 'numb', 'N', 'CycK', 'Cdk2', 'Dsor1']
+
+Final best paths:
+['sqh', 'flw', 'Cul3', 'rdx', 'ci', 'sgg', 'Axn', 'dsh', 'Rho1', 'cta', 'fog']
+['sqh', 'Pp1-87B', 'Mbs', 'Rho1', 'cta', 'fog']
+['sqh', 'Rho1', 'cta', 'fog']
+['sqh', 'zip', 'l(2)gl', 'par-6', 'aPKC', 'numb', 'N', 'dsh', 'Rho1', 'cta', 'fog']
+['sqh', 'Rho1', 'cta', 'fog']
+['sqh', 'zip', 'sgg', 'arm', 'dsh', 'Rho1', 'cta', 'fog']
+['sqh', 'Rho1', 'cta', 'CycK', 'Cdk2', 'rl', 'Dsor1', 'Raf', 'tor', 'fog']
+"""
+
+"""
+K=5
+
+Final candidates:
+['Pp1-87B', 'flw', 'Roc1b', 'ci', 'CkIalpha', 'Axn', 'l(2)gl', 'numb', 'N', 'CycK', 'Cdk2', 'Dsor1']
+
+Final best paths:
+[['sqh', 'Pp1-87B', 'Mbs', 'Rho1', 'cta', 'fog'],
+['sqh', 'flw', 'Cul3', 'Roc1b', 'ci', 'CkIalpha', 'arm', 'Axn', 'dsh', 'Rho1', 'cta', 'fog'],
+['sqh', 'Rho1', 'cta', 'fog'],
+['sqh', 'zip', 'l(2)gl', 'par-6', 'aPKC', 'numb', 'N', 'dsh', 'Rho1', 'cta', 'fog'],
+['sqh', 'Rho1', 'cta', 'fog'],
+['sqh', 'zip', 'sgg', 'arm', 'dsh', 'Rho1', 'cta', 'fog'],
+['sqh', 'Rho1', 'cta', 'CycK', 'Cdk2', 'rl', 'Dsor1', 'Raf', 'tor', 'fog']]
+
+"""
 
 if __name__ == "__main__":
 	main()
