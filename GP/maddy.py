@@ -1,19 +1,27 @@
 """
 Maddy Doak
 "Group" Project
-11/27/2019
 
-Iteratively runs Dijkstra_all/get_paths from Fog to Sqh using costs (-log(weight)) of edges
-Adds unlabeled nodes in the shortest path from Fog to Sqh to a list of candidates
-Removes these unlabeled nodes from the graph at each iteration, then re-runs
-Iteration ends when there are no more unlabeled nodes in the shortest path, OR the list has 15 candidates
+DESCRIPTION:
+Iteratively runs Yen's KSP from Fog to Sqh using costs (-log(weight)) of edges
+Of the K shortest paths, picks the one with the highest proportion of positively-labeled nodes
+Adds unlabeled nodes in this path to a list of candidates
+Removes these unlabeled nodes from the graph, then re-runs
+Iteration ends when there are no more unlabeled nodes in any of the K shortest paths, OR the list has >10 candidates
+
+INSTRUCTIONS:
+To start, go to the main() function at the bottom.
+In the "read_fly_interactome" function, add filepaths/filenames for the .txt files with graph nodes/edges and node labels, respectively,
+if different from those already entered (these may be found in the "inputs" Google Drive folder).
+You may change the source/target nodes (s and t, respectively) if desired, but this script is meant to use sqh/fog as the source and target.
+You may adjust K to be any number of paths you want to choose from at each iteration, but 5 is a good starting point.
+Nothing else need be changed in order to run the program as you normally would.
 
 OUTPUT: text file with list of candidates in order of rank
 """
 
 from copy import deepcopy
 from math import log
-from datetime import datetime
 from graphspace_python.api.client import GraphSpace
 from graphspace_python.graphs.classes.gsgraph import GSGraph
 
@@ -25,7 +33,7 @@ graphspace = GraphSpace('maddydoak@gmail.com','mygraphspacepw')
 def read_fly_interactome(graph_file,label_file):
 	G = {}	# G = {u:{v:w,v2:w2,...},...}
 	L = {}	# L = {u:Positive,v:Negative,...}
-	with open(graph_file, 'rt') as file:
+	with open(graph_file, 'rt') as file:						# Get node/edge info for graph
 		next(file)	# Skip header line
 		for line in file:
 			line_list = line.strip().split()
@@ -41,7 +49,7 @@ def read_fly_interactome(graph_file,label_file):
 				G[node2] = {node1:cost}
 			else:
 				G[node2][node1] = cost
-	with open(label_file, 'rt') as f:
+	with open(label_file, 'rt') as f:							# Get node labels
 		next(f)
 		for line in f:
 			protein_info = line.strip().split()
@@ -104,53 +112,53 @@ def get_paths(pi,t):
 	else:
 		return None
 
-# Implementation of Yen's K shortest paths based on Wikipedia pseudocode
+# Implementation of Yen's K shortest paths based on Wikipedia pseudocode; see Wiki page for description of the "spur node," "root path," etc
 # Inputs: G=graph (dict of dicts, see above), s=source node, t=target node, K=number of shortest paths
 # Returns: list of lists of K shortest paths from s to t
 def yenKSP(Graph,s,t,K):
 	G = deepcopy(Graph)
-	k_paths = []
-	potentials = []
+	k_paths = []												# List to be returned with the K shortest paths from s to t
+	potentials = []												# Possible shortest paths to be added to the above list
 	D,pi = dijkstra_all(G,s)
-	paths = get_paths(pi,t)
+	paths = get_paths(pi,t)										# Function that takes distances and predecessors from Dijkstra and returns a list of lists of paths
 	if paths is None:
-		return None
+		return None												# For the case of an unconnected graph; exits yenKSP
 	for path in paths:
-		k_paths.append(path)
+		k_paths.append(path)									# Starts by adding the shortest path (or paths if tied) from Dijstra to the main list
 	start = 0
 	stop = K-1
-	for i in range(len(k_paths)):
+	for i in range(len(k_paths)):								# Adjusts the range of the main for loop to correct for possible ties from Dijkstra
 		start += 1
 		stop += 1
-	for k in range(start,stop):									# To account for having 2+ tied paths from dijkstra_all
-		for i in range(len(k_paths[k-1])-1):
-			spur_node = k_paths[k-1][i]
-			root_path = k_paths[k-1][:i+1]
-			nodes_to_delete = []
-			removed_edges = []
+	for k in range(start,stop):									# The main iterative loop that looks for the next-shortest paths
+		for i in range(len(k_paths[k-1])-1):					# Looks at the last shortest path in the main list, except for the last node
+			spur_node = k_paths[k-1][i]							# a node in the current path to try and "branch off from" and create a new next-shortest path
+			root_path = k_paths[k-1][:i+1]						# the path up to and including the spur node
+			nodes_to_delete = []								# Passed to function that deletes the node and all edges containing it from the graph
+			removed_edges = []									# List of edges that were temporarily removed to be added back later
 			for path in k_paths:
-				if root_path == path[:i+1]:
-					removed_edges.append((path[i],path[i+1],G[path[i]][path[i+1]]))
+				if root_path == path[:i+1]:						# Checks all other paths in main list to see if they have the same "root"
+					removed_edges.append((path[i],path[i+1],G[path[i]][path[i+1]]))		# If so, removes the edge connecting the root to the rest of the path
 			for edge in removed_edges:
 				if edge[1] in G[edge[0]].keys():
 					del G[edge[0]][edge[1]]
 				if edge[0] in G[edge[1]].keys():
 					del G[edge[1]][edge[0]]
-			for node in root_path:
+			for node in root_path:								# Removes all non-spur nodes in the root path from the graph
 				if node != spur_node:
 					nodes_to_delete.append(node)
 			deleted_nodes = del_nodes(G,nodes_to_delete)
-			D_spur,pi_spur = dijkstra_all(G,spur_node)
-			spur_paths = get_paths(pi_spur,t)
+			D_spur,pi_spur = dijkstra_all(G,spur_node)			# Runs Dijkstra using the spur node as the source
+			spur_paths = get_paths(pi_spur,t)					# And gets the shortest path from the spur to the target
 			total_path = deepcopy(root_path)
-			if spur_paths is not None:
+			if spur_paths is not None:							# Creates a new potential shortest path with the root + the new branched off path from spur to t
 				for p in spur_paths:
 					for node in p:
 						if node not in total_path:
 							total_path.append(node)
 				if total_path not in potentials:
 					potentials.append(total_path)
-			for node,neighbors in deleted_nodes.items():
+			for node,neighbors in deleted_nodes.items():		# This and the next for loop add back the removed nodes/edges
 				G[node] = neighbors
 				for v,w in neighbors.items():
 					if v not in G.keys():
@@ -161,25 +169,25 @@ def yenKSP(Graph,s,t,K):
 				G[edge[1]][edge[0]] = edge[2]
 		if len(potentials) > 0:
 			potentials.sort()
-			if potentials[0] not in k_paths:
+			if potentials[0] not in k_paths:					# Sorts potentials by length, adds the shortest to k_paths
 				k_paths.append(potentials[0])
 				potentials.pop()
 	return k_paths
 
-# Primary function,
+# Primary function, runs Yen's KSP repeatedly and removes unlabeled nodes, adding them to a list of candidates
 # Inputs: Graph = graph (dict of dicts), L = dict of pos/neg labels, s = starting node, t = ending node, K = number of shortest paths to examine
-# Returns: list of candidate fog pathway proteins
+# Returns: list of all generated best paths (list of candidates is written to a .txt doc, not returned)
 def get_candidates(Graph,L,s,t,K):
 	G = deepcopy(Graph)
-	candidates = []
-	to_delete = []
-	best_paths = []
-	while len(candidates) < 100:
+	candidates = []												# The list of unlabeled nodes removed from the best paths
+	best_paths = []												# A list of the chosen best paths, returned so that they can be viewed if desired
+	to_delete = []												# Keeps track of nodes to be removed from the graph at each iteration
+	paths_not_empty = True										# Used in while loops, becomes False if there are no unlabeled nodes in any of the K shortest paths
+	while len(candidates) < 10 and paths_not_empty:				# This value may be modified for a longer list of candidates; this is for a short list
 		K_shortest_paths = yenKSP(G,s,t,K)
 		if K_shortest_paths is None:
 			break
-		print("K shortest paths: ",K_shortest_paths)
-		def get_best_path(L,K_shortest_paths):
+		def get_best_path(L,K_shortest_paths):					# Picks the path out of the K shortest paths that has the highest proportion of positive-labeled nodes
 			scores = []
 			for p in K_shortest_paths:
 				score = 0
@@ -190,28 +198,22 @@ def get_candidates(Graph,L,s,t,K):
 				score = score / len(p[1:len(p)-1])
 				scores.append(score)
 			return K_shortest_paths[scores.index(max(scores))]
-		paths_not_empty = True
-		while len(to_delete) == 0 and paths_not_empty:
+		while len(to_delete) == 0 and paths_not_empty:			# While still trying to find a path with unlabeled nodes...
 			best_path = get_best_path(L,K_shortest_paths)
-			best_paths.append(best_path)
+			best_paths.append(best_path)						# All best paths are tracked, regardless of if they generate candidates
 			for node in best_path[1:len(best_path)-1]:			# Not counting fog/sqh
 				if node not in L.keys():
 					candidates.append(node)
-					to_delete.append(node)
+					to_delete.append(node)						# If the node isn't in the L dictionary, that means it is unlabeled, and thus a candidate
 			if len(to_delete) > 0:
 				del_nodes(G,to_delete)
-				if len(candidates) == 1:
-					print(datetime.now().hour,":",datetime.now().minute,":",datetime.now().second," - ","Have ",str(len(candidates))," candidate")
-				else:
-					print(datetime.now().hour,":",datetime.now().minute,":",datetime.now().second," - ","Have ",str(len(candidates))," candidates")
-			else:
+			else:												# If there are no unlabeled nodes, remove the best path from the list of K shortest paths
 				K_shortest_paths.remove(best_path)
-				if len(K_shortest_paths) == 0:
-					print(datetime.now().hour,":",datetime.now().minute,":",datetime.now().second," - ","Out of paths! Starting over...")
-					paths_not_empty = False
+				if len(K_shortest_paths) == 0:					# If there are no paths left in the list of K shortest, ends this while loop and the main one
+					paths_not_empty = False						# This could potentially be changed so that K is increased and the main loop is run again
 		to_delete = []
 	print("Final list of candidates: "+str(candidates))
-	with open('Maddy_candidates_all.txt','w') as file:
+	with open('Maddy_candidates_all.txt','w') as file:			# Writes the results to two files, one with the top 10, and one with all if there are >=10
 		for c in candidates[:len(candidates)-1]:
 			file.write(c+"\n")
 		file.write(candidates[-1])
@@ -302,13 +304,12 @@ def graph_best_paths(gs_session,paths,labels,graph):
 
 def main():
 	print("Reading fly interactome...")
-	flyG,flyL = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
+	G,L = read_fly_interactome("interactome-flybase-collapsed-weighted.txt","labeled_nodes.txt")
 	print("done. Getting best shortest paths...")
 	s = 'sqh'	# source node
 	t = 'fog'	# target node
 	K = 5		# number of shortest paths from s to t
-	best_paths = get_candidates(flyG,flyL,s,t,K)
-	#graph_best_paths(graphspace,best_paths,flyL,flyG)
+	best_paths = get_candidates(G,L,s,t,K)
 
 """
 K=3

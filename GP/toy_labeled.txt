@@ -1,7 +1,0 @@
-Name ID Pos/Neg
-A1	x	Positive
-B1	x	Positive
-D1	x	Negative
-F1	x	Positive
-G1	x	Positive
-H1	x	Negative
